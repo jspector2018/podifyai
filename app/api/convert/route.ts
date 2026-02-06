@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import OpenAI from "openai";
-import pdf from "pdf-parse";
+
+// @ts-ignore - pdf-parse has CommonJS exports
+const pdfParse = require("pdf-parse");
+
+// Force dynamic route
+export const dynamic = 'force-dynamic';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Extract text from PDF
-    const pdfData = await pdf(buffer);
+    const pdfData = await pdfParse(buffer);
     const pdfText = pdfData.text;
 
     if (!pdfText || pdfText.trim().length < 100) {
