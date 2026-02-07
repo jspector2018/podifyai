@@ -50,18 +50,28 @@ export default function Dashboard() {
   };
 
   const loadConversions = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-    const { data, error } = await supabase
-      .from("conversions")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .order("created_at", { ascending: false })
-      .limit(10);
+      const { data, error: queryError } = await supabase
+        .from("conversions")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
 
-    if (data) {
-      setConversions(data);
+      if (queryError) {
+        console.error("Load conversions error:", queryError);
+        // Don't show this to user - just means no history yet
+        return;
+      }
+
+      if (data) {
+        setConversions(data);
+      }
+    } catch (err) {
+      console.error("Load conversions exception:", err);
     }
   };
 
@@ -71,18 +81,24 @@ export default function Dashboard() {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.type !== "application/pdf") {
-      setError("Please select a valid PDF file");
-      return;
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      // Accept PDFs - check extension as fallback since iOS sometimes has weird MIME types
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        setError("Please select a valid PDF file");
+        return;
+      }
+      if (file.size > 4.5 * 1024 * 1024) {
+        setError("PDF is too large. Maximum file size is 4.5MB.");
+        return;
+      }
+      setSelectedFile(file);
+      setError("");
+    } catch (err: any) {
+      setError("Error selecting file: " + (err.message || "Unknown error"));
     }
-    if (file.size > 4.5 * 1024 * 1024) {
-      setError("PDF is too large. Maximum file size is 4.5MB.");
-      return;
-    }
-    setSelectedFile(file);
-    setError("");
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -123,19 +139,24 @@ export default function Dashboard() {
       setProgress(30);
 
       // Call API
-      const response = await fetch("/api/convert", {
-        method: "POST",
-        body: formData,
-      });
+      let response;
+      try {
+        response = await fetch("/api/convert", {
+          method: "POST",
+          body: formData,
+        });
+      } catch (fetchErr: any) {
+        throw new Error("Network error: " + (fetchErr.message || "Failed to reach server. The PDF may be too large."));
+      }
 
       setProgress(60);
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Conversion failed");
+        throw new Error(result.error || `Server error (${response.status})`);
       }
 
-      const result = await response.json();
       setProgress(100);
 
       // Reload conversions
@@ -148,7 +169,9 @@ export default function Dashboard() {
       setSelectedFile(null);
       setProgress(0);
     } catch (err: any) {
+      console.error("Conversion error:", err);
       setError(err.message || "Failed to convert PDF");
+      setProgress(0);
     } finally {
       setProcessing(false);
     }
@@ -216,7 +239,7 @@ export default function Dashboard() {
               <input
                 id="file-input"
                 type="file"
-                accept=".pdf"
+                accept=".pdf,application/pdf"
                 onChange={handleFileSelect}
                 className="hidden"
               />

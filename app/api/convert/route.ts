@@ -71,14 +71,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate userId is a proper UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      return NextResponse.json(
+        { error: "Invalid user session. Please sign out and sign in again." },
+        { status: 400 }
+      );
+    }
+
     // Check usage limits
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const { data: usageData } = await supabaseAdmin
+    const { data: usageData, error: usageError } = await supabaseAdmin
       .from("usage")
       .select("count")
       .eq("user_id", userId)
       .eq("month", currentMonth)
       .single();
+    
+    // Ignore "no rows" error - just means first use this month
+    if (usageError && usageError.code !== "PGRST116") {
+      console.error("Usage check error:", usageError);
+    }
 
     if (usageData && usageData.count >= 3) {
       return NextResponse.json(
