@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import OpenAI from "openai";
-
-// @ts-ignore - pdf-parse has CommonJS exports
-const pdfParse = require("pdf-parse");
+import { extractText } from "unpdf";
 
 // Force dynamic route
 export const dynamic = 'force-dynamic';
@@ -105,9 +103,10 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Extract text from PDF
-    const pdfData = await pdfParse(buffer);
-    const pdfText = pdfData.text;
+    // Extract text from PDF (use a copy since extractText may detach the ArrayBuffer)
+    const uint8 = new Uint8Array(arrayBuffer.slice(0));
+    const pdfData = await extractText(uint8);
+    const pdfText = Array.isArray(pdfData.text) ? pdfData.text.join("\n") : pdfData.text;
 
     if (!pdfText || pdfText.trim().length < 100) {
       return NextResponse.json(
