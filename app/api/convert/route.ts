@@ -36,9 +36,21 @@ const STYLE_CONFIGS = {
   },
 };
 
+// Vercel serverless function config
+export const maxDuration = 60; // 60 second timeout
+
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
+    let formData;
+    try {
+      formData = await request.formData();
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: "Failed to parse form data. File may be too large (max 4.5MB on free tier)." },
+        { status: 400 }
+      );
+    }
+
     const file = formData.get("pdf") as File;
     const style = formData.get("style") as "quick" | "summary" | "deep";
     const voice = formData.get("voice") as "rachel" | "adam" | "bella";
@@ -47,6 +59,14 @@ export async function POST(request: NextRequest) {
     if (!file || !style || !voice || !userId) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Check file size (Vercel free tier body limit is ~4.5MB)
+    if (file.size > 4.5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "PDF is too large. Maximum file size is 4.5MB." },
         { status: 400 }
       );
     }

@@ -72,12 +72,17 @@ export default function Dashboard() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type === "application/pdf") {
-      setSelectedFile(file);
-      setError("");
-    } else {
+    if (!file) return;
+    if (file.type !== "application/pdf") {
       setError("Please select a valid PDF file");
+      return;
     }
+    if (file.size > 4.5 * 1024 * 1024) {
+      setError("PDF is too large. Maximum file size is 4.5MB.");
+      return;
+    }
+    setSelectedFile(file);
+    setError("");
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -87,12 +92,17 @@ export default function Dashboard() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type === "application/pdf") {
-      setSelectedFile(file);
-      setError("");
-    } else {
+    if (!file) return;
+    if (file.type !== "application/pdf") {
       setError("Please drop a valid PDF file");
+      return;
     }
+    if (file.size > 4.5 * 1024 * 1024) {
+      setError("PDF is too large. Maximum file size is 4.5MB.");
+      return;
+    }
+    setSelectedFile(file);
+    setError("");
   };
 
   const handleConvert = async () => {
@@ -200,7 +210,7 @@ export default function Dashboard() {
                   <p className="text-lg font-semibold text-gray-700">
                     Drop your PDF here or click to browse
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">Maximum file size: 10MB</p>
+                  <p className="text-sm text-gray-500 mt-1">Maximum file size: 4.5MB</p>
                 </div>
               )}
               <input
