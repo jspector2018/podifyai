@@ -35,7 +35,7 @@ const STYLE_CONFIGS = {
 };
 
 // Vercel serverless function config
-export const maxDuration = 60; // 60 second timeout
+export const maxDuration = 300; // 5 minute timeout (Vercel Pro)
 
 export async function POST(request: NextRequest) {
   try {
